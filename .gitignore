@@ -1,0 +1,30 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDEs / editores
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+#referencia
+week4.ipynb
+# Material de referência do curso (NÃO versionar — respostas do autograder)
+week4.ipynb
+reference/

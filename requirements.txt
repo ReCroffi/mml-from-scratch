@@ -1,0 +1,11 @@
+# Núcleo numérico — versões testadas no ambiente de desenvolvimento
+numpy==2.4.3
+pandas==2.3.3
+scikit-learn==1.8.0
+matplotlib==3.10.8
+
+# Notebook (para rodar notebooks/analysis.ipynb)
+jupyter
+
+# Testes
+pytest
