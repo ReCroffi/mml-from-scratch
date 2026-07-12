@@ -1,5 +1,7 @@
 # MML from scratch
 
+**🌐 Idioma:** **Português** · [English](README_en.md)
+
 > Implementação do zero (NumPy) de PCA e regressão linear, aplicada a um dataset real —
 > encerrando a especialização *Mathematics for Machine Learning* (Imperial College / Coursera).
 
