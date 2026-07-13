@@ -23,8 +23,4 @@ dist/
 
 # OS
 .DS_Store
-#referencia
-week4.ipynb
-# Material de referência do curso (NÃO versionar — respostas do autograder)
-week4.ipynb
-reference/
+
