@@ -49,7 +49,7 @@ equal footing.
 | 4 | Validate against sklearn — automated tests in `tests/test_pca.py` (`normalize` centers · components match sklearn · `reconstruct` roundtrip) | ✅ |
 | 5 | Linear regression from scratch: gradient descent (`gradient_descent`) — MSE gradient derived by hand | ✅ |
 | 6 | Closed-form solution: normal equation (`normal_equation`) + proof that GD converges to it — tests in `tests/test_regression.py` (GD ≈ normal equation · analytical gradient ≈ numerical) | ✅ |
-| 7 | Regression on the PCA *scores* — connects the two halves of the project | 🔄 next |
+| 7 | Regression on the PCA *scores* — connects the two halves of the project (proven: MSE identical to regression on the features, by rotation invariance) | ✅ |
 | 8 | SVD + comparison with the eigendecomposition (ill-conditioned case) | ⬜️ |
 
 ## Results
@@ -113,8 +113,9 @@ python -m pytest -v
 
 The tests validate PCA against `sklearn` (`sklearn.decomposition.PCA`), check math
 properties of their own (centering and reconstruction roundtrip), and cover the regression
-(gradient descent converges to the normal equation, and the analytical gradient matches the
-numerical one via finite differences).
+(gradient descent converges to the normal equation, the analytical gradient matches the
+numerical one via finite differences, and regression on the PCA *scores* reproduces the MSE of
+regression on the features — rotation invariance).
 
 ## Structure
 
