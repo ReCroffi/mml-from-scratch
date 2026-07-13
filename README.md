@@ -5,8 +5,9 @@
 > Implementação do zero (NumPy) de PCA e regressão linear, aplicada a um dataset real —
 > encerrando a especialização *Mathematics for Machine Learning* (Imperial College / Coursera).
 
-> ⚠️ **Em construção.** O PCA está implementado e validado contra o sklearn. Regressão,
-> testes formais e comparação com SVD estão nas próximas etapas (ver [Pipeline](#pipeline)).
+> ⚠️ **Em construção.** O PCA está implementado, validado contra o sklearn e coberto por
+> testes automatizados (`pytest`). Regressão e comparação com SVD estão nas próximas etapas
+> (ver [Pipeline](#pipeline)).
 
 ## Objetivo
 
@@ -43,7 +44,7 @@ igual pra igual.
 | 1 | Carregar + padronizar na mão (`normalize`) | ✅ |
 | 2 | PCA na mão: covariância → eigendecomposition → projeção (`cov_matrix`, `eig`, `PCA`) | ✅ |
 | 3 | Reconstrução (`reconstruct`) — inversa da projeção | ✅ |
-| 4 | Validar contra sklearn (variância explicada, scores, reconstrução) | 🔄 informal feito, falta formalizar em `tests/` |
+| 4 | Validar contra sklearn — testes automatizados em `tests/test_pca.py` (`normalize` centraliza · componentes batem com sklearn · roundtrip do `reconstruct`) | ✅ |
 | 5 | Regressão via gradiente descendente nos dados reduzidos | ⬜️ |
 | 6 | Comparar com solução fechada (equação normal) | ⬜️ |
 | 7 | SVD + comparação com a eigendecomposition (caso mal-condicionado) | ⬜️ |
@@ -100,11 +101,14 @@ pip install -r requirements.txt
 jupyter notebook notebooks/analysis.ipynb
 ```
 
-Para rodar os testes (quando existirem):
+Para rodar os testes:
 
 ```bash
-pytest
+python -m pytest -v
 ```
+
+Os testes validam o PCA contra o `sklearn` (`sklearn.decomposition.PCA`) e verificam
+propriedades matemáticas próprias (centralização e roundtrip de reconstrução).
 
 ## Estrutura
 
