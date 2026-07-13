@@ -7,9 +7,9 @@
 > Implementação do zero (NumPy) de PCA e regressão linear, aplicada a um dataset real —
 > encerrando a especialização *Mathematics for Machine Learning* (Imperial College / Coursera).
 
-> ⚠️ **Em construção.** O PCA está implementado, validado contra o sklearn e coberto por
-> testes automatizados (`pytest`). Regressão e comparação com SVD estão nas próximas etapas
-> (ver [Pipeline](#pipeline)).
+> ⚠️ **Em construção.** O PCA e a regressão linear (gradiente descendente + equação normal)
+> estão implementados, validados e cobertos por testes automatizados (`pytest`). O notebook de
+> análise e a comparação com SVD estão nas próximas etapas (ver [Pipeline](#pipeline)).
 
 ## Objetivo
 
@@ -47,9 +47,10 @@ igual pra igual.
 | 2 | PCA na mão: covariância → eigendecomposition → projeção (`cov_matrix`, `eig`, `PCA`) | ✅ |
 | 3 | Reconstrução (`reconstruct`) — inversa da projeção | ✅ |
 | 4 | Validar contra sklearn — testes automatizados em `tests/test_pca.py` (`normalize` centraliza · componentes batem com sklearn · roundtrip do `reconstruct`) | ✅ |
-| 5 | Regressão via gradiente descendente nos dados reduzidos | ⬜️ |
-| 6 | Comparar com solução fechada (equação normal) | ⬜️ |
-| 7 | SVD + comparação com a eigendecomposition (caso mal-condicionado) | ⬜️ |
+| 5 | Regressão linear do zero: gradiente descendente (`gradient_descent`) — o gradiente do MSE derivado na mão | ✅ |
+| 6 | Solução fechada: equação normal (`normal_equation`) + prova de que o GD converge pra ela — testes em `tests/test_regression.py` (GD ≈ eq. normal · gradiente analítico ≈ numérico) | ✅ |
+| 7 | Regressão sobre os *scores* do PCA — conecta as duas metades do projeto | 🔄 próximo |
+| 8 | SVD + comparação com a eigendecomposition (caso mal-condicionado) | ⬜️ |
 
 ## Resultados
 
@@ -109,16 +110,18 @@ Para rodar os testes:
 python -m pytest -v
 ```
 
-Os testes validam o PCA contra o `sklearn` (`sklearn.decomposition.PCA`) e verificam
-propriedades matemáticas próprias (centralização e roundtrip de reconstrução).
+Os testes validam o PCA contra o `sklearn` (`sklearn.decomposition.PCA`), verificam
+propriedades matemáticas próprias (centralização e roundtrip de reconstrução) e cobrem a
+regressão (o gradiente descendente converge para a equação normal, e o gradiente analítico
+bate com o numérico por diferenças finitas).
 
 ## Estrutura
 
 ```
 mml-from-scratch/
-├── src/         # implementações testáveis (pca.py; regression.py em breve)
+├── src/         # implementações testáveis (pca.py, regression.py)
 ├── notebooks/   # a narrativa: EDA → PCA → regressão → comparação
-├── tests/       # validação contra sklearn
+├── tests/       # validação contra sklearn (test_pca.py, test_regression.py)
 └── data/        # dataset (Wine vem do próprio sklearn; pasta reservada)
 ```
 

@@ -7,9 +7,9 @@
 > From-scratch implementation (NumPy) of PCA and linear regression, applied to a real dataset —
 > capping off the *Mathematics for Machine Learning* specialization (Imperial College / Coursera).
 
-> ⚠️ **Work in progress.** PCA is implemented, validated against scikit-learn, and covered by
-> automated tests (`pytest`). Regression and the SVD comparison are the next steps
-> (see [Pipeline](#pipeline)).
+> ⚠️ **Work in progress.** PCA and linear regression (gradient descent + normal equation) are
+> implemented, validated, and covered by automated tests (`pytest`). The analysis notebook and
+> the SVD comparison are the next steps (see [Pipeline](#pipeline)).
 
 ## Goal
 
@@ -47,9 +47,10 @@ equal footing.
 | 2 | PCA by hand: covariance → eigendecomposition → projection (`cov_matrix`, `eig`, `PCA`) | ✅ |
 | 3 | Reconstruction (`reconstruct`) — inverse of the projection | ✅ |
 | 4 | Validate against sklearn — automated tests in `tests/test_pca.py` (`normalize` centers · components match sklearn · `reconstruct` roundtrip) | ✅ |
-| 5 | Linear regression via gradient descent on the reduced data | ⬜️ |
-| 6 | Compare against the closed-form solution (normal equation) | ⬜️ |
-| 7 | SVD + comparison with the eigendecomposition (ill-conditioned case) | ⬜️ |
+| 5 | Linear regression from scratch: gradient descent (`gradient_descent`) — MSE gradient derived by hand | ✅ |
+| 6 | Closed-form solution: normal equation (`normal_equation`) + proof that GD converges to it — tests in `tests/test_regression.py` (GD ≈ normal equation · analytical gradient ≈ numerical) | ✅ |
+| 7 | Regression on the PCA *scores* — connects the two halves of the project | 🔄 next |
+| 8 | SVD + comparison with the eigendecomposition (ill-conditioned case) | ⬜️ |
 
 ## Results
 
@@ -110,16 +111,18 @@ To run the tests:
 python -m pytest -v
 ```
 
-The tests validate PCA against `sklearn` (`sklearn.decomposition.PCA`) and check
-math properties of their own (centering and reconstruction roundtrip).
+The tests validate PCA against `sklearn` (`sklearn.decomposition.PCA`), check math
+properties of their own (centering and reconstruction roundtrip), and cover the regression
+(gradient descent converges to the normal equation, and the analytical gradient matches the
+numerical one via finite differences).
 
 ## Structure
 
 ```
 mml-from-scratch/
-├── src/         # testable implementations (pca.py; regression.py coming soon)
+├── src/         # testable implementations (pca.py, regression.py)
 ├── notebooks/   # the narrative: EDA → PCA → regression → comparison
-├── tests/       # validation against sklearn
+├── tests/       # validation against sklearn (test_pca.py, test_regression.py)
 └── data/        # dataset (Wine ships with sklearn; folder reserved)
 ```
 
