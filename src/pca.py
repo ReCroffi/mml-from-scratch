@@ -46,6 +46,3 @@ def reconstruct(score, components, mean, std):
 # %%
 X = df.drop('label', axis=1).to_numpy()
 y = df['label'].to_numpy()
-# %%
-
-# %%
