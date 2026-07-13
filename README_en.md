@@ -71,30 +71,50 @@ enough for a 2D scatter colored by class.
 
 ## The math behind it
 
-<!-- Renan: this content was assembled from what YOU argued during development. Rewrite it in
-     your own voice and make sure you can defend each point out loud — this is what comes up in
-     interviews. Don't memorize my phrasing. -->
+<!-- Renan: draft for you to adjust in your own voice. Make sure you can defend each point out
+     loud — this is what comes up in interviews. -->
 
-- **Why the covariance matrix, and not the raw data?** Because it is **symmetric** and
-  **positive semidefinite (PSD)**. Symmetry gives **real** eigenvalues and **orthonormal**
-  eigenvectors (via `np.linalg.eigh`); PSD gives **non-negative** eigenvalues (≥ 0) — which makes
-  physical sense, since each eigenvalue is a variance, and variance can't be negative.
+**Why diagonalize the covariance instead of staring at the raw data.** The covariance matrix is
+symmetric and positive semidefinite (PSD). This isn't textbook trivia — those two properties are
+what make PCA exist. Symmetry gives real eigenvalues and orthonormal eigenvectors (that's what
+`np.linalg.eigh` hands me). PSD gives eigenvalues ≥ 0, and that *has* to hold: each eigenvalue is a
+variance, and negative variance doesn't exist. A negative one would be a bug, not a discovery.
 
-- **What are the eigenvectors and eigenvalues here?** The **eigenvectors** are the directions of
-  maximum variance (the principal components, mutually orthogonal); the **eigenvalues** say *how
-  much* variance lies along each direction. The sum of the eigenvalues equals the trace of the
-  covariance matrix — total variance is **conserved**, PCA just redistributes it across orthogonal
-  axes.
+**What eigenvector and eigenvalue mean here.** Eigenvector is a direction; eigenvalue is how much
+variance lives along it. The eigenvectors are the principal components, mutually orthogonal — new,
+rotated axes pointed where the data spreads most. The sum of the eigenvalues is the trace of the
+covariance, i.e. the total variance. PCA doesn't create or destroy variance. It just redistributes
+it, from the axis that explains most to the one that explains least.
 
-- **Why is `Xnᵀ @ Xn` the covariance?** With the data already centered, each `(i,j)` entry of that
-  product sums the products of the deviations of features `i` and `j` over all samples — the very
-  definition of covariance; dividing by `N-1` turns the sum into a mean.
+**Why `Xnᵀ @ Xn` is the covariance.** With the data already centered, each `(i,j)` entry of that
+product sums the products of the deviations of features `i` and `j` over all samples — which is
+literally the definition of covariance. Dividing by `N-1` turns the sum into a mean.
 
-- **Sign ambiguity.** Eigenvectors are defined up to sign (both `v` and `-v` are valid). That's
-  why the scores match sklearn's *in magnitude*, sometimes with a flipped sign — not a bug, a
-  property. Validation tests must be robust to this.
+**Sign ambiguity.** An eigenvector is defined up to sign: both `v` and `-v` are valid. So my scores
+match sklearn's in magnitude, sometimes with a flipped sign. Not a bug, a property — and the
+validation test has to be robust to it (I compare `np.abs`, not the raw values).
 
-<!-- TODO (after implementing): gradient descent vs. normal equation — when to use each. -->
+**The MSE gradient, derived by hand.** This is where Calculus shows up. The loss is
+`MSE = (1/n)·Σ(ŷ−y)²`, and to minimize it I need its derivative with respect to the weights. Chain
+rule: the derivative of `r²` is `2r`, and the derivative of the residual `r = xᵀw − y` w.r.t. `w`
+is `x` itself. Put them together and the gradient is `(2/n)·Xᵀ(Xw − y)`. I didn't take the formula
+on faith — I checked it against the numerical gradient (finite differences), and it matched to the
+last digit.
+
+**Gradient descent vs. normal equation — when to use each.** Both reach the same `w` (I proved it
+in a test). The difference is the path. The normal equation solves in one shot,
+`w = (XᵀX)⁻¹Xᵀy`, but it inverts a matrix: ~`O(d³)` cost, and fragile when features are nearly
+collinear (`XᵀX` becomes ill-conditioned). Gradient descent gets there step by step, inverts
+nothing, and scales to sizes where inverting a matrix is out of the question. That's why the real
+world — and all of deep learning — runs on gradients, not closed forms. The closed form here was
+the answer key that proved my gradient was right.
+
+**The bridge between the two halves.** Linear regression is invariant to rotation of the feature
+space. PCA with all components is just a rotation (orthonormal basis, nothing lost — the roundtrip
+proves it). So regressing `proline` on the 12 scores gives predictions and MSE identical to
+regressing on the 12 original features. The weights change, because they live in a rotated basis;
+what the model predicts doesn't. That was the "aha" that stitched PCA and regression into one
+project.
 
 ## How to run
 
@@ -129,11 +149,37 @@ mml-from-scratch/
 
 ## What I learned
 
-<!-- Renan: 3-4 HONEST bullets, in your own voice. Pull from what you actually stumbled on in
-     these sessions. Topic suggestions that produced good "aha" moments (write them yourself):
-     - the difference between standardizing (scale) and centering, and why Wine needs both
-     - why `eigh` guarantees REAL eigenvalues, but non-negativity comes from covariance being PSD
-       (different sources — don't conflate them)
-     - the ddof choice (1 vs 0) and how it explains the tiny difference when comparing to StandardScaler
-     - why SVD is more stable than the eigendecomposition of the covariance (squaring the data
-       amplifies rounding error) — to be filled in when the SVD is implemented -->
+<!-- Renan: draft in your own voice to adjust. Everything here came from something I actually
+     stumbled on. -->
+
+- **A pure function beats a script with the data baked in.** My first PCA loaded the dataset inside
+  the module. Felt handy — until testing time, when I realized I couldn't reuse the functions on any
+  other input. Pulling the loading out and leaving the modules as pure functions is what made the
+  project testable. `regression.py` came out clean on the first try.
+
+- **A test with no `assert` tests nothing.** Obvious in hindsight, not before. My first test computed
+  the check and threw the result away. The `assert` *is* the test; everything else is setup. I also
+  learned that running through `pytest` (which discovers tests and sets up the path) is different from
+  running the file as a script — and why only the first one works.
+
+- **In a comparison test, one side is my code, the other is the reference.** I spent a while comparing
+  sklearn against its own transpose before realizing my own result had been left out of the `assert`.
+  A test that compares the reference to itself is theater.
+
+- **`.copy()` in NumPy isn't optional.** In the numerical gradient, `w_plus = w` doesn't copy — it
+  points at the same array, and touching `w_plus[i]` corrupts the original `w`. Classic silent bug.
+  Now "reference or copy?" is the first question I ask when an array changes without my say-so.
+
+- **Derive the gradient by hand and prove it with finite differences.** This gave me the most
+  confidence: it's not "I trust the formula," it's "I proved it." Same idea as backprop, on a model
+  that still fits in your head.
+
+- **Details that looked like pedantry turned into understanding.** `ddof=1` explains the tiny
+  difference from `StandardScaler`; standardizing (scale) isn't the same as centering (mean); and
+  with standardized data the regression intercept comes out exactly equal to the target's mean —
+  which I used as a sanity check on the bias term.
+
+- **CI isn't decoration.** Putting the tests on GitHub Actions forced me to make sure
+  `requirements.txt` is complete, because the runner starts from a bare environment. Missing a
+  dependency? It goes red. (And I learned the hard way that pushing a workflow needs the `workflow`
+  scope on the token.)

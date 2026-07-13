@@ -71,29 +71,50 @@ pra um scatter 2D colorido por classe.
 
 ## A matemática por trás
 
-<!-- Renan: este conteúdo foi montado a partir do que VOCÊ argumentou durante o desenvolvimento.
-     Reescreva no seu tom e confira se sabe defender cada ponto de boca — é o que cai em
-     entrevista. Não decore a minha frase. -->
+<!-- Renan: rascunho pra você ajustar no seu tom. Confere se sabe defender cada ponto de boca —
+     é o que cai em entrevista. -->
 
-- **Por que a matriz de covariância, e não os dados crus?** Porque ela é **simétrica** e
-  **positiva semidefinida (PSD)**. Da simetria vêm autovalores **reais** e autovetores
-  **ortonormais** (via `np.linalg.eigh`); da PSD vêm autovalores **≥ 0** — o que faz sentido
-  físico, já que cada autovalor é uma variância, e variância não pode ser negativa.
+**Por que diagonalizar a covariância, e não olhar os dados crus.** A matriz de covariância é
+simétrica e positiva semidefinida (PSD). Não é detalhe de livro — são essas duas propriedades que
+fazem o PCA existir. Da simetria vêm autovalores reais e autovetores ortonormais (é o que o
+`np.linalg.eigh` me entrega). Da PSD vêm autovalores ≥ 0, e isso *tem* que ser verdade: cada
+autovalor é uma variância, e variância negativa não existe. Se eu tivesse achado um negativo, era
+bug, não descoberta.
 
-- **O que são autovetores e autovalores aqui?** Os **autovetores** são as direções de máxima
-  variância (os componentes principais, ortogonais entre si); os **autovalores** dizem *quanta*
-  variância há em cada direção. A soma dos autovalores é igual ao traço da covariância — a
-  variância total é **conservada**, o PCA apenas a redistribui sobre eixos ortogonais.
+**O que autovetor e autovalor significam aqui.** Autovetor é direção; autovalor é quanta variância
+mora naquela direção. Os autovetores são os componentes principais, ortogonais entre si — eixos
+novos, girados, apontados pra onde os dados mais se espalham. A soma dos autovalores é o traço da
+covariância, ou seja, a variância total. O PCA não cria nem apaga variância. Ele só a redistribui,
+do eixo que mais explica pro que menos explica.
 
-- **Por que `Xnᵀ @ Xn` é a covariância?** Com os dados já centrados, cada entrada `(i,j)` desse
-  produto soma os produtos dos desvios das features `i` e `j` sobre todas as amostras — a própria
-  definição de covariância; dividir por `N-1` transforma soma em média.
+**Por que `Xnᵀ @ Xn` é a covariância.** Com os dados já centrados, cada entrada `(i,j)` desse
+produto soma os produtos dos desvios das features `i` e `j` sobre todas as amostras — que é
+literalmente a definição de covariância. Dividir por `N-1` transforma a soma em média.
 
-- **Ambiguidade de sinal.** Autovetores são definidos a menos de sinal (`v` e `-v` são ambos
-  válidos). Por isso os scores batem com o sklearn *em módulo*, com o sinal eventualmente trocado
-  — não é bug, é propriedade. Testes de validação precisam ser robustos a isso.
+**Ambiguidade de sinal.** Autovetor é definido a menos de sinal: `v` e `-v` são os dois válidos.
+Por isso os meus scores batem com o sklearn em módulo, às vezes com o sinal trocado. Não é bug, é
+propriedade — e o teste de validação tem que ser robusto a isso (comparo `np.abs`, não os valores
+crus).
 
-<!-- TODO (após implementar): gradiente descendente vs. equação normal — quando cada um. -->
+**O gradiente do MSE, derivado na mão.** Aqui entra o Cálculo. A loss é `MSE = (1/n)·Σ(ŷ−y)²`, e
+pra minimizar preciso da derivada dela em relação aos pesos. Regra da cadeia: a derivada de `r²` é
+`2r`, e a derivada do resíduo `r = xᵀw − y` em relação a `w` é o próprio `x`. Junta os dois e o
+gradiente vira `(2/n)·Xᵀ(Xw − y)`. Não confiei na fórmula por fé — conferi contra o gradiente
+numérico (diferenças finitas) e bateu até a última casa.
+
+**Gradiente descendente vs. equação normal — quando cada um.** Os dois chegam no mesmo `w` (provei
+num teste). A diferença é o caminho. A equação normal resolve de uma vez, `w = (XᵀX)⁻¹Xᵀy`, mas
+inverte uma matriz: custo ~`O(d³)` e frágil quando as features são quase colineares (o `XᵀX` fica
+mal-condicionado). O gradiente descendente chega lá aos poucos, sem inverter nada, e escala pra
+tamanhos onde inverter matriz seria inviável. É por isso que o mundo real — e todo deep learning —
+roda em gradiente, não em solução fechada. A fórmula fechada aqui serviu de gabarito pra provar
+que o meu gradiente estava certo.
+
+**A ponte entre as duas metades.** Regressão linear é invariante a rotação do espaço de features.
+PCA com todos os componentes é só uma rotação (base ortonormal, nada perdido — o roundtrip prova).
+Então regredir `proline` nos 12 scores dá previsão e MSE idênticos a regredir nas 12 features
+originais. Os pesos mudam, porque estão numa base girada; o que o modelo prevê, não. Foi o "aha"
+que costurou PCA e regressão num projeto só.
 
 ## Como rodar
 
@@ -128,11 +149,35 @@ mml-from-scratch/
 
 ## O que aprendi
 
-<!-- Renan: 3-4 bullets HONESTOS, no seu tom. Puxa do que você tropeçou de verdade nessas
-     sessões. Sugestões de tópicos que renderam bons "aha" (escreva você):
-     - a diferença entre padronizar (escala) e centralizar, e por que o Wine exige as duas
-     - por que `eigh` garante autovalores REAIS, mas a não-negatividade vem da covariância ser PSD
-       (são fontes diferentes — não confundir)
-     - a escolha de ddof (1 vs 0) e como ela explica a diferencinha ao comparar com o StandardScaler
-     - por que SVD é mais estável que a eigendecomposition da covariância (elevar ao quadrado
-       amplifica erro de arredondamento) — a preencher quando implementar o SVD -->
+<!-- Renan: rascunho no seu tom pra ajustar. Tudo aqui saiu de coisa que eu tropecei de verdade. -->
+
+- **Função pura vale mais que script com dados embutidos.** Minha primeira versão do PCA carregava
+  o dataset dentro do módulo. Parecia prático — até a hora de testar, quando percebi que não dava
+  pra reusar as funções com outra entrada. Tirar o carregamento e deixar os módulos só com funções
+  puras foi o que tornou o projeto testável. No `regression.py` já saiu limpo de primeira.
+
+- **Um teste sem `assert` não testa nada.** Óbvio depois, não antes. Meu primeiro teste calculava a
+  verificação e jogava o resultado no lixo. O `assert` *é* o teste; o resto é preparação. Aprendi
+  também que rodar via `pytest` (que descobre os testes e monta o path) é diferente de rodar o
+  arquivo como script — e por que só o primeiro funciona.
+
+- **Num teste de comparação, um lado é o meu código, o outro é a referência.** Perdi um tempo
+  comparando o sklearn com ele mesmo transposto antes de sacar que o meu resultado tinha ficado de
+  fora do `assert`. Teste que compara a referência com ela mesma é teatro.
+
+- **`.copy()` no NumPy não é opcional.** No gradiente numérico, `w_mais = w` não copia — aponta pro
+  mesmo array, e mexer em `w_mais[i]` corrompe o `w` original. Bug silencioso clássico. Hoje
+  "referência ou cópia?" é a primeira pergunta que faço quando um array muda sem eu mandar.
+
+- **Derivar o gradiente na mão e provar com diferenças finitas.** Foi o que mais me deu segurança:
+  não é "confio que a fórmula tá certa", é "provo que tá". Mesma ideia do backprop, num modelo que
+  ainda cabe na cabeça.
+
+- **Detalhes que pareciam pedância viraram entendimento.** O `ddof=1` explica a diferencinha pro
+  `StandardScaler`; padronizar (escala) não é o mesmo que centralizar (média); e com os dados
+  padronizados o intercepto da regressão dá exatamente a média do alvo — o que usei de sanity check
+  pro termo de bias.
+
+- **CI não é enfeite.** Colocar os testes no GitHub Actions me obrigou a garantir que o
+  `requirements.txt` está completo, porque o runner parte de um ambiente pelado. Faltou dependência?
+  Fica vermelho. (E descobri na marra que push de workflow exige o escopo `workflow` no token.)
