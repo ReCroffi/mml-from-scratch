@@ -2,6 +2,8 @@
 
 **🌐 Language:** [Português](README.md) · **English**
 
+[![Tests](https://github.com/ReCroffi/mml-from-scratch/actions/workflows/tests.yml/badge.svg)](https://github.com/ReCroffi/mml-from-scratch/actions/workflows/tests.yml)
+
 > From-scratch implementation (NumPy) of PCA and linear regression, applied to a real dataset —
 > capping off the *Mathematics for Machine Learning* specialization (Imperial College / Coursera).
 

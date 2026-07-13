@@ -2,6 +2,8 @@
 
 **🌐 Idioma:** **Português** · [English](README_en.md)
 
+[![Tests](https://github.com/ReCroffi/mml-from-scratch/actions/workflows/tests.yml/badge.svg)](https://github.com/ReCroffi/mml-from-scratch/actions/workflows/tests.yml)
+
 > Implementação do zero (NumPy) de PCA e regressão linear, aplicada a um dataset real —
 > encerrando a especialização *Mathematics for Machine Learning* (Imperial College / Coursera).
 
