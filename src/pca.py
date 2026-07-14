@@ -1,12 +1,6 @@
-#%%
-import pandas as pd
 import numpy as np
-from sklearn.datasets import load_wine
-wine_data = load_wine()
-df = pd.DataFrame(wine_data.data, columns=wine_data.feature_names)
-df['label'] = wine_data.target
 
-#%%
+
 def normalize(X):
     mu = np.mean(X, axis=0)    
     X_bar = X - mu
@@ -40,9 +34,3 @@ def reconstruct(score, components, mean, std):
     Xn_reconst = score @ components.T
     reconst = Xn_reconst * std + mean
     return reconst
-    
-    
-
-# %%
-X = df.drop('label', axis=1).to_numpy()
-y = df['label'].to_numpy()
