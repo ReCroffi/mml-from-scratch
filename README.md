@@ -66,8 +66,21 @@ Variância explicada acumulada (verificada — bate com `sklearn` até a 4ª cas
 Ou seja: reduzir de 13 → 2 dimensões já preserva mais da metade da variância — o suficiente
 pra um scatter 2D colorido por classe.
 
-<!-- TODO: adicionar o gráfico de variância explicada acumulada + o scatter 2D por classe
-     quando o notebook de análise estiver pronto. -->
+### Variância explicada por componente
+
+![Variância explicada acumulada por componente principal](assets/variancia_explicada.png)
+
+As barras são a variância de cada componente; a linha vermelha, a acumulada. O "cotovelo" é
+nítido: o PC1 sozinho carrega 36,2% e os primeiros poucos concentram quase tudo. A curva cruza os
+95% no 10º componente — dá pra ir de 13 features a 10 componentes perdendo só 5% da informação.
+
+### As castas no plano PC1 × PC2
+
+![Amostras de vinho projetadas nos dois primeiros componentes principais, coloridas por casta](assets/scatter_pcs.png)
+
+Cada ponto é um vinho projetado nos dois primeiros componentes (≈ 55% da variância). As três castas
+se separam em grupos bem definidos — e o PCA **nunca viu os rótulos**: ele só maximiza variância.
+As classes emergem porque a diferença entre castas *é* a maior fonte de variação nos dados.
 
 ## A matemática por trás
 

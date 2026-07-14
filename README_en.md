@@ -66,8 +66,22 @@ Cumulative explained variance (verified — matches `sklearn` to the 4th decimal
 That is: reducing from 13 → 2 dimensions already preserves more than half of the variance —
 enough for a 2D scatter colored by class.
 
-<!-- TODO: add the cumulative explained-variance plot + the 2D scatter by class once the
-     analysis notebook is ready. -->
+### Explained variance per component
+
+![Cumulative explained variance per principal component](assets/variancia_explicada.png)
+
+The bars are each component's variance; the red line, the cumulative total. The "elbow" is clear:
+PC1 alone carries 36.2% and the first few concentrate almost everything. The curve crosses 95% at
+the 10th component — you can go from 13 features to 10 components losing only 5% of the information.
+
+### The cultivars on the PC1 × PC2 plane
+
+![Wine samples projected onto the first two principal components, colored by cultivar](assets/scatter_pcs.png)
+
+Each point is a wine projected onto the first two components (≈ 55% of the variance). The three
+cultivars separate into well-defined groups — and PCA **never saw the labels**: it only maximizes
+variance. The classes emerge because the difference between cultivars *is* the largest source of
+variation in the data.
 
 ## The math behind it
 
