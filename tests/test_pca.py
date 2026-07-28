@@ -1,4 +1,4 @@
-from src.pca import normalize, PCA, reconstruct
+from src.pca import normalize, PCA, reconstruct, PCA_svd
 import numpy as np
 from sklearn.datasets import load_wine
 from sklearn.decomposition import PCA as SklearnPCA
@@ -20,8 +20,15 @@ def test_pca():
 
 
 def test_reconstruct_roundtrip():
-    X = load_wine().data                          # Arrange
+    X = load_wine().data                         
     score, _, components, mean, std = PCA(X, num_components=X.shape[1])   # todos!
-    X_reconst = reconstruct(score, components, mean, std)   # Act
-    assert np.allclose(X_reconst, X)              # Assert
+    X_reconst = reconstruct(score, components, mean, std)   
+    assert np.allclose(X_reconst, X)              
 
+def test_pca_svd_bate_com_eigendecomposition():
+    X = load_wine().data
+    Xn, _, _, = normalize(X)
+    _, eig_vals_pca, components_pca, _, _ = PCA(Xn, num_components = 2)
+    _, eig_vals_svd, components_svd, _, _ = PCA_svd(Xn, num_components= 2)
+    assert np.allclose(eig_vals_pca, eig_vals_svd)
+    assert np.allclose(np.abs(components_pca), np.abs(components_svd))

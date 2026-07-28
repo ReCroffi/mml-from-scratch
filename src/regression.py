@@ -37,4 +37,4 @@ def gradient_descent(X, y, lr, n_iters):
 def normal_equation(X,y):
     X_aug = add_bias(X)       
     a = np.linalg.inv(X_aug.T @ X_aug) @ X_aug.T @ y
-    return a 
+    return a

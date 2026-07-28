@@ -34,3 +34,15 @@ def reconstruct(score, components, mean, std):
     Xn_reconst = score @ components.T
     reconst = Xn_reconst * std + mean
     return reconst
+
+#%% 
+def PCA_svd(X, num_components):
+    Xn, mean, std = normalize(X)
+    U, S ,Vt = np.linalg.svd(Xn, full_matrices= False)
+    components = Vt.T[:, :num_components]
+    score = Xn @ components
+    n = Xn.shape[0]
+    eig_vals = S**2 / (n-1)
+    return score, eig_vals, components, mean, std
+
+# %%
