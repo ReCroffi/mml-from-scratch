@@ -173,6 +173,15 @@ To run the tests:
 python -m pytest -v
 ```
 
+If you have [`just`](https://github.com/casey/just) installed, the project ships a `justfile` with shortcuts:
+
+```bash
+just install    # create the venv and install dependencies
+just test       # run the tests
+just notebook   # open the analysis notebook
+just clean      # clean Python/pytest caches
+```
+
 The tests validate PCA against `sklearn` (`sklearn.decomposition.PCA`), check math
 properties of their own (centering and reconstruction roundtrip), and cover the regression
 (gradient descent converges to the normal equation, the analytical gradient matches the

@@ -172,6 +172,15 @@ Para rodar os testes:
 python -m pytest -v
 ```
 
+Se tiver o [`just`](https://github.com/casey/just) instalado, o projeto tem um `justfile` com atalhos:
+
+```bash
+just install    # cria o venv e instala as dependências
+just test       # roda os testes
+just notebook   # abre o notebook de análise
+just clean      # limpa caches do Python/pytest
+```
+
 Os testes validam o PCA contra o `sklearn` (`sklearn.decomposition.PCA`), verificam
 propriedades matemáticas próprias (centralização e roundtrip de reconstrução) e cobrem a
 regressão (o gradiente descendente converge para a equação normal, o gradiente analítico
