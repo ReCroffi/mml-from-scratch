@@ -7,9 +7,9 @@
 > From-scratch implementation (NumPy) of PCA and linear regression, applied to a real dataset —
 > capping off the *Mathematics for Machine Learning* specialization (Imperial College / Coursera).
 
-> ⚠️ **Work in progress.** PCA and linear regression (gradient descent + normal equation) are
-> implemented, validated, and covered by automated tests (`pytest`). The analysis notebook and
-> the SVD comparison are the next steps (see [Pipeline](#pipeline)).
+> ✅ **Complete.** PCA (eigendecomposition and SVD), linear regression (gradient descent + normal
+> equation), and the notebook analysis are implemented, validated, and covered by automated tests
+> (`pytest`) — see [Pipeline](#pipeline).
 
 ## Goal
 
@@ -50,7 +50,7 @@ equal footing.
 | 5 | Linear regression from scratch: gradient descent (`gradient_descent`) — MSE gradient derived by hand | ✅ |
 | 6 | Closed-form solution: normal equation (`normal_equation`) + proof that GD converges to it — tests in `tests/test_regression.py` (GD ≈ normal equation · analytical gradient ≈ numerical) | ✅ |
 | 7 | Regression on the PCA *scores* — connects the two halves of the project (proven: MSE identical to regression on the features, by rotation invariance) | ✅ |
-| 8 | SVD + comparison with the eigendecomposition (ill-conditioned case) | ⬜️ |
+| 8 | SVD (`PCA_svd`) + comparison with the eigendecomposition (ill-conditioned case) — tests in `tests/test_pca.py` (`PCA_svd` matches the eigendecomposition on Wine) | ✅ |
 
 ## Results
 
@@ -70,17 +70,17 @@ enough for a 2D scatter colored by class.
 
 ![Cumulative explained variance per principal component](assets/variancia_explicada.png)
 
-The bars are each component's variance; the red line, the cumulative total. The "elbow" is clear:
-PC1 alone carries 36.2% and the first few concentrate almost everything. The curve crosses 95% at
-the 10th component — you can go from 13 features to 10 components losing only 5% of the information.
+The bars are each component's variance; the red line, the cumulative total. PC1 alone already
+carries 36.2%, and the first few concentrate almost everything. The curve crosses 95% at the 10th
+component, so you can go from 13 features to 10 components losing only 5% of the information.
 
 ### The cultivars on the PC1 × PC2 plane
 
 ![Wine samples projected onto the first two principal components, colored by cultivar](assets/scatter_pcs.png)
 
 Each point is a wine projected onto the first two components (≈ 55% of the variance). The three
-cultivars separate into well-defined groups — and PCA **never saw the labels**: it only maximizes
-variance. The classes emerge because the difference between cultivars *is* the largest source of
+cultivars separate into well-defined groups, and PCA never saw the labels: it only maximizes
+variance. The classes emerge because the difference between cultivars is the largest source of
 variation in the data.
 
 ### Regression MSE vs. number of PCA components
@@ -89,56 +89,74 @@ variation in the data.
 
 This is where the bridge between the two halves of the project turns into a number: predicting
 `proline` from the other 12 features, the MSE drops from ~74,797 with 1 component to ~34,920 with
-all 12 — and that final value is **identical** to the MSE of regressing directly on the 12 original
+all 12, and that final value is identical to the MSE of regressing directly on the 12 original
 features (the dashed red line). Makes sense: with all components, PCA is just a rotation of the
-space, and linear regression is rotation-invariant — the same proof from step 7, now as a chart.
+space, and linear regression is rotation-invariant. Same proof from step 7, now as a chart.
+
+### SVD vs. eigendecomposition on an ill-conditioned case
+
+![Relative error of eigenvalues recovered by eigendecomposition vs. SVD, log scale, on a synthetic ill-conditioned case](assets/svd_vs_eig_condicionamento.png)
+
+Up to this point PCA always went through the covariance (`Xnᵀ @ Xn`) followed by `eigh`, and that
+worked fine on Wine because Wine is well-conditioned. To test the method's limits, I built a
+synthetic `X` with known singular values chosen by hand (`np.logspace(0, -10, 10)`, 10 orders of
+magnitude apart), which gives me an exact ground truth to compare against.
+
+`cond(X) ≈ 1e10`, but `cond(cov(X)) ≈ 3.3e17`, much worse. That's not a coincidence: forming the
+covariance as `XᵀX` squares the condition number (`cond(XᵀX) = cond(X)²`), and that already exceeds
+`float64` precision (~16 decimal digits). The result: `erro_svd` stayed low across the whole range
+(max ~1.8%), while `erro_eig` degrades as the component gets weaker, reaching 544,629% error on the
+last one. Not missing by a little, losing that direction entirely, because the information had
+already been erased when computing `XᵀX`.
+
+This isn't an implementation bug, it's structural. Forming the covariance is convenient, and it's
+what I used for the whole project with no issue because Wine is well-conditioned, but it doesn't
+scale to ill-conditioned data. That's why serious PCA implementations, including
+`sklearn.decomposition.PCA` under the hood, use SVD directly on the data, avoiding forming the
+covariance on purpose.
 
 ## The math behind it
 
-<!-- Renan: draft for you to adjust in your own voice. Make sure you can defend each point out
-     loud — this is what comes up in interviews. -->
+Why diagonalize the covariance instead of staring at the raw data. The covariance matrix is
+symmetric and positive semidefinite (PSD), and those two properties are what make PCA exist.
+Symmetry gives real eigenvalues and orthonormal eigenvectors, which is what `np.linalg.eigh` hands
+me. PSD gives eigenvalues ≥ 0, and that has to hold: each eigenvalue is a variance, and negative
+variance doesn't exist. A negative one would be a bug, not a discovery.
 
-**Why diagonalize the covariance instead of staring at the raw data.** The covariance matrix is
-symmetric and positive semidefinite (PSD). This isn't textbook trivia — those two properties are
-what make PCA exist. Symmetry gives real eigenvalues and orthonormal eigenvectors (that's what
-`np.linalg.eigh` hands me). PSD gives eigenvalues ≥ 0, and that *has* to hold: each eigenvalue is a
-variance, and negative variance doesn't exist. A negative one would be a bug, not a discovery.
-
-**What eigenvector and eigenvalue mean here.** Eigenvector is a direction; eigenvalue is how much
-variance lives along it. The eigenvectors are the principal components, mutually orthogonal — new,
+What eigenvector and eigenvalue mean here. Eigenvector is a direction, eigenvalue is how much
+variance lives along it. The eigenvectors are the principal components, mutually orthogonal, new
 rotated axes pointed where the data spreads most. The sum of the eigenvalues is the trace of the
-covariance, i.e. the total variance. PCA doesn't create or destroy variance. It just redistributes
-it, from the axis that explains most to the one that explains least.
+covariance, i.e. the total variance. PCA doesn't create or destroy variance, it just redistributes
+from the axis that explains most to the one that explains least.
 
-**Why `Xnᵀ @ Xn` is the covariance.** With the data already centered, each `(i,j)` entry of that
-product sums the products of the deviations of features `i` and `j` over all samples — which is
-literally the definition of covariance. Dividing by `N-1` turns the sum into a mean.
+Why `Xnᵀ @ Xn` is the covariance. With the data already centered, each `(i,j)` entry of that product
+sums the products of the deviations of features `i` and `j` over all samples, which is literally the
+definition of covariance. Dividing by `N-1` turns the sum into a mean.
 
-**Sign ambiguity.** An eigenvector is defined up to sign: both `v` and `-v` are valid. So my scores
-match sklearn's in magnitude, sometimes with a flipped sign. Not a bug, a property — and the
+Sign ambiguity. An eigenvector is defined up to sign: both `v` and `-v` are valid. So my scores
+match sklearn's in magnitude, sometimes with a flipped sign. Not a bug, a property, and the
 validation test has to be robust to it (I compare `np.abs`, not the raw values).
 
-**The MSE gradient, derived by hand.** This is where Calculus shows up. The loss is
+The MSE gradient, derived by hand. This is where Calculus shows up. The loss is
 `MSE = (1/n)·Σ(ŷ−y)²`, and to minimize it I need its derivative with respect to the weights. Chain
-rule: the derivative of `r²` is `2r`, and the derivative of the residual `r = xᵀw − y` w.r.t. `w`
-is `x` itself. Put them together and the gradient is `(2/n)·Xᵀ(Xw − y)`. I didn't take the formula
-on faith — I checked it against the numerical gradient (finite differences), and it matched to the
-last digit.
+rule: the derivative of `r²` is `2r`, and the derivative of the residual `r = xᵀw − y` w.r.t. `w` is
+`x` itself. Put them together and the gradient is `(2/n)·Xᵀ(Xw − y)`. I didn't take the formula on
+faith, I checked it against the numerical gradient (finite differences), and it matched to the last
+digit.
 
-**Gradient descent vs. normal equation — when to use each.** Both reach the same `w` (I proved it
-in a test). The difference is the path. The normal equation solves in one shot,
-`w = (XᵀX)⁻¹Xᵀy`, but it inverts a matrix: ~`O(d³)` cost, and fragile when features are nearly
-collinear (`XᵀX` becomes ill-conditioned). Gradient descent gets there step by step, inverts
-nothing, and scales to sizes where inverting a matrix is out of the question. That's why the real
-world — and all of deep learning — runs on gradients, not closed forms. The closed form here was
-the answer key that proved my gradient was right.
+Gradient descent vs. normal equation, when to use each. Both reach the same `w` (I proved it in a
+test), the difference is the path. The normal equation solves in one shot, `w = (XᵀX)⁻¹Xᵀy`, but it
+inverts a matrix: ~`O(d³)` cost, and fragile when features are nearly collinear, because `XᵀX`
+becomes ill-conditioned (the same problem I attacked in step 8, with SVD). Gradient descent gets
+there step by step, inverts nothing, and scales to sizes where inverting a matrix is out of the
+question. That's why the real world, and all of deep learning, runs on gradients, not closed forms.
+The closed form here was the answer key that proved my gradient was right.
 
-**The bridge between the two halves.** Linear regression is invariant to rotation of the feature
-space. PCA with all components is just a rotation (orthonormal basis, nothing lost — the roundtrip
-proves it). So regressing `proline` on the 12 scores gives predictions and MSE identical to
-regressing on the 12 original features. The weights change, because they live in a rotated basis;
-what the model predicts doesn't. That was the "aha" that stitched PCA and regression into one
-project.
+The bridge between the two halves. Linear regression is invariant to rotation of the feature space.
+PCA with all components is just a rotation, orthonormal basis, nothing lost (the roundtrip proves
+it). So regressing `proline` on the 12 scores gives predictions and MSE identical to regressing on
+the 12 original features. The weights change, because they live in a rotated basis; what the model
+predicts doesn't. That was the "aha" that stitched PCA and regression into one project.
 
 ## How to run
 
@@ -173,37 +191,39 @@ mml-from-scratch/
 
 ## What I learned
 
-<!-- Renan: draft in your own voice to adjust. Everything here came from something I actually
-     stumbled on. -->
-
-- **A pure function beats a script with the data baked in.** My first PCA loaded the dataset inside
-  the module. Felt handy — until testing time, when I realized I couldn't reuse the functions on any
+- A pure function beats a script with the data baked in. My first PCA loaded the dataset inside the
+  module. Felt handy, until testing time, when I realized I couldn't reuse the functions on any
   other input. Pulling the loading out and leaving the modules as pure functions is what made the
   project testable. `regression.py` came out clean on the first try.
 
-- **A test with no `assert` tests nothing.** Obvious in hindsight, not before. My first test computed
-  the check and threw the result away. The `assert` *is* the test; everything else is setup. I also
-  learned that running through `pytest` (which discovers tests and sets up the path) is different from
-  running the file as a script — and why only the first one works.
+- A test with no `assert` tests nothing. Obvious in hindsight, not before. My first test computed
+  the check and threw the result away. The `assert` is the test, everything else is setup. I also
+  learned that running through `pytest` (which discovers tests and sets up the path) is different
+  from running the file as a script, and why only the first one works.
 
-- **In a comparison test, one side is my code, the other is the reference.** I spent a while comparing
-  sklearn against its own transpose before realizing my own result had been left out of the `assert`.
-  A test that compares the reference to itself is theater.
+- In a comparison test, one side is my code, the other is the reference. I spent a while comparing
+  sklearn against its own transpose before realizing my own result had been left out of the
+  `assert`. A test that compares the reference to itself is theater.
 
-- **`.copy()` in NumPy isn't optional.** In the numerical gradient, `w_plus = w` doesn't copy — it
-  points at the same array, and touching `w_plus[i]` corrupts the original `w`. Classic silent bug.
-  Now "reference or copy?" is the first question I ask when an array changes without my say-so.
+- `.copy()` in NumPy isn't optional. In the numerical gradient, `w_plus = w` doesn't copy, it points
+  at the same array, and touching `w_plus[i]` corrupts the original `w`. Classic silent bug. Now
+  "reference or copy?" is the first question I ask when an array changes without my say-so.
 
-- **Derive the gradient by hand and prove it with finite differences.** This gave me the most
-  confidence: it's not "I trust the formula," it's "I proved it." Same idea as backprop, on a model
-  that still fits in your head.
+- Deriving the gradient by hand and proving it with finite differences gave me the most confidence.
+  Not "I trust the formula," it's "I proved it." Same idea as backprop, on a model that still fits
+  in your head.
 
-- **Details that looked like pedantry turned into understanding.** `ddof=1` explains the tiny
-  difference from `StandardScaler`; standardizing (scale) isn't the same as centering (mean); and
-  with standardized data the regression intercept comes out exactly equal to the target's mean —
-  which I used as a sanity check on the bias term.
+- Details that looked like pedantry turned into understanding. `ddof=1` explains the tiny difference
+  from `StandardScaler`; standardizing (scale) isn't the same as centering (mean); and with
+  standardized data the regression intercept comes out exactly equal to the target's mean, which I
+  used as a sanity check on the bias term.
 
-- **CI isn't decoration.** Putting the tests on GitHub Actions forced me to make sure
+- CI isn't decoration. Putting the tests on GitHub Actions forced me to make sure
   `requirements.txt` is complete, because the runner starts from a bare environment. Missing a
-  dependency? It goes red. (And I learned the hard way that pushing a workflow needs the `workflow`
-  scope on the token.)
+  dependency, it goes red. And I learned the hard way that pushing a workflow needs the `workflow`
+  scope on the token.
+
+- Forming the covariance by hand squares the condition number. In the ill-conditioned case I built
+  to test SVD against eigendecomposition, that completely erased the weakest component before the
+  decomposition even ran. I didn't read about this anywhere, it only showed up when I went looking
+  for a case that would break the method I already had.

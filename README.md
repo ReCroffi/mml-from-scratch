@@ -7,9 +7,9 @@
 > Implementação do zero (NumPy) de PCA e regressão linear, aplicada a um dataset real —
 > encerrando a especialização *Mathematics for Machine Learning* (Imperial College / Coursera).
 
-> ⚠️ **Em construção.** O PCA e a regressão linear (gradiente descendente + equação normal)
-> estão implementados, validados e cobertos por testes automatizados (`pytest`). O notebook de
-> análise e a comparação com SVD estão nas próximas etapas (ver [Pipeline](#pipeline)).
+> ✅ **Completo.** PCA (eigendecomposition e SVD), regressão linear (gradiente descendente +
+> equação normal) e a análise no notebook estão implementados, validados e cobertos por testes
+> automatizados (`pytest`) — ver [Pipeline](#pipeline).
 
 ## Objetivo
 
@@ -50,7 +50,7 @@ igual pra igual.
 | 5 | Regressão linear do zero: gradiente descendente (`gradient_descent`) — o gradiente do MSE derivado na mão | ✅ |
 | 6 | Solução fechada: equação normal (`normal_equation`) + prova de que o GD converge pra ela — testes em `tests/test_regression.py` (GD ≈ eq. normal · gradiente analítico ≈ numérico) | ✅ |
 | 7 | Regressão sobre os *scores* do PCA — conecta as duas metades do projeto (provado: MSE idêntico ao da regressão nas features, por invariância a rotação) | ✅ |
-| 8 | SVD + comparação com a eigendecomposition (caso mal-condicionado) | ⬜️ |
+| 8 | SVD (`PCA_svd`) + comparação com a eigendecomposition (caso mal-condicionado) — testes em `tests/test_pca.py` (`PCA_svd` bate com a eigendecomposition no Wine) | ✅ |
 
 ## Resultados
 
@@ -70,74 +70,92 @@ pra um scatter 2D colorido por classe.
 
 ![Variância explicada acumulada por componente principal](assets/variancia_explicada.png)
 
-As barras são a variância de cada componente; a linha vermelha, a acumulada. O "cotovelo" é
-nítido: o PC1 sozinho carrega 36,2% e os primeiros poucos concentram quase tudo. A curva cruza os
-95% no 10º componente — dá pra ir de 13 features a 10 componentes perdendo só 5% da informação.
+As barras são a variância de cada componente; a linha vermelha, a acumulada. O PC1 sozinho já
+carrega 36,2%, e os primeiros poucos concentram quase tudo. A curva cruza os 95% no 10º componente,
+ou seja, dá pra ir de 13 features a 10 componentes perdendo só 5% da informação.
 
 ### As castas no plano PC1 × PC2
 
 ![Amostras de vinho projetadas nos dois primeiros componentes principais, coloridas por casta](assets/scatter_pcs.png)
 
 Cada ponto é um vinho projetado nos dois primeiros componentes (≈ 55% da variância). As três castas
-se separam em grupos bem definidos — e o PCA **nunca viu os rótulos**: ele só maximiza variância.
-As classes emergem porque a diferença entre castas *é* a maior fonte de variação nos dados.
+se separam em grupos bem definidos, e o PCA nunca viu os rótulos: ele só maximiza variância. As
+classes emergem porque a diferença entre castas é a maior fonte de variação nos dados.
 
 ### MSE da regressão vs. número de componentes do PCA
 
 ![MSE da regressão sobre os scores do PCA, para cada número de componentes, comparado ao MSE sem PCA](assets/mse_k_components.png)
 
 Aqui a ponte entre as duas metades do projeto vira número: prevendo `proline` a partir das outras
-12 features, o MSE cai de ~74.797 com 1 componente pra ~34.920 com os 12 — e esse valor final é
-**idêntico** ao MSE da regressão direto sobre as 12 features originais (linha tracejada vermelha).
-Faz sentido: com todos os componentes, o PCA é só uma rotação do espaço, e regressão linear é
-invariante a rotação — é a mesma prova da etapa 7, agora em gráfico.
+12 features, o MSE cai de ~74.797 com 1 componente pra ~34.920 com os 12, e esse valor final é
+idêntico ao MSE da regressão direto sobre as 12 features originais (linha tracejada vermelha). Faz
+sentido: com todos os componentes, o PCA é só uma rotação do espaço, e regressão linear é invariante
+a rotação. É a mesma prova da etapa 7, agora em gráfico.
+
+### SVD vs. eigendecomposition num caso mal-condicionado
+
+![Erro relativo dos autovalores recuperados por eigendecomposition vs. SVD, em escala log, num caso sintético mal-condicionado](assets/svd_vs_eig_condicionamento.png)
+
+Até aqui o PCA sempre passou pela covariância (`Xnᵀ @ Xn`) seguida de `eigh`, e funcionou bem no
+Wine porque o Wine é bem-condicionado. Pra testar o limite do método, construí um `X` sintético com
+valores singulares conhecidos na mão (`np.logspace(0, -10, 10)`, 10 ordens de grandeza de
+diferença), o que me dá um gabarito exato pra comparar.
+
+`cond(X) ≈ 1e10`, mas `cond(cov(X)) ≈ 3,3e17`, bem pior. Isso não é acaso: montar a covariância como
+`XᵀX` eleva o número de condição ao quadrado (`cond(XᵀX) = cond(X)²`), e isso já ultrapassa a
+precisão do `float64` (~16 dígitos decimais). O resultado: o `erro_svd` ficou baixo em toda a faixa
+(máximo ~1,8%), enquanto o `erro_eig` degrada conforme o componente fica mais fraco, chegando a
+544.629% de erro no último. Não é errar por pouco, é perder completamente aquela direção, porque a
+informação já tinha sido apagada ao calcular `XᵀX`.
+
+Não é bug de implementação, é estrutural. Calcular a covariância é conveniente, e foi o que usei o
+projeto inteiro sem problema porque o Wine é bem-condicionado, mas não escala pra dados
+mal-condicionados. É por isso que implementações sérias de PCA, inclusive o
+`sklearn.decomposition.PCA` por baixo dos panos, usam SVD direto nos dados, evitando montar a
+covariância de propósito.
 
 ## A matemática por trás
 
-<!-- Renan: rascunho pra você ajustar no seu tom. Confere se sabe defender cada ponto de boca —
-     é o que cai em entrevista. -->
+Por que diagonalizar a covariância, e não olhar os dados crus. A matriz de covariância é simétrica
+e positiva semidefinida (PSD), e são essas duas propriedades que fazem o PCA existir. Da simetria
+vêm autovalores reais e autovetores ortonormais, que é o que o `np.linalg.eigh` me entrega. Da PSD
+vêm autovalores ≥ 0, e isso tem que ser verdade: cada autovalor é uma variância, e variância
+negativa não existe. Se eu tivesse achado um negativo, era bug, não descoberta.
 
-**Por que diagonalizar a covariância, e não olhar os dados crus.** A matriz de covariância é
-simétrica e positiva semidefinida (PSD). Não é detalhe de livro — são essas duas propriedades que
-fazem o PCA existir. Da simetria vêm autovalores reais e autovetores ortonormais (é o que o
-`np.linalg.eigh` me entrega). Da PSD vêm autovalores ≥ 0, e isso *tem* que ser verdade: cada
-autovalor é uma variância, e variância negativa não existe. Se eu tivesse achado um negativo, era
-bug, não descoberta.
+O que autovetor e autovalor significam aqui. Autovetor é direção, autovalor é quanta variância mora
+naquela direção. Os autovetores são os componentes principais, ortogonais entre si, eixos novos e
+girados apontando pra onde os dados mais se espalham. A soma dos autovalores é o traço da
+covariância, ou seja, a variância total. O PCA não cria nem apaga variância, ele só redistribui do
+eixo que mais explica pro que menos explica.
 
-**O que autovetor e autovalor significam aqui.** Autovetor é direção; autovalor é quanta variância
-mora naquela direção. Os autovetores são os componentes principais, ortogonais entre si — eixos
-novos, girados, apontados pra onde os dados mais se espalham. A soma dos autovalores é o traço da
-covariância, ou seja, a variância total. O PCA não cria nem apaga variância. Ele só a redistribui,
-do eixo que mais explica pro que menos explica.
+Por que `Xnᵀ @ Xn` é a covariância. Com os dados já centrados, cada entrada `(i,j)` desse produto
+soma os produtos dos desvios das features `i` e `j` sobre todas as amostras, que é literalmente a
+definição de covariância. Dividir por `N-1` transforma a soma em média.
 
-**Por que `Xnᵀ @ Xn` é a covariância.** Com os dados já centrados, cada entrada `(i,j)` desse
-produto soma os produtos dos desvios das features `i` e `j` sobre todas as amostras — que é
-literalmente a definição de covariância. Dividir por `N-1` transforma a soma em média.
-
-**Ambiguidade de sinal.** Autovetor é definido a menos de sinal: `v` e `-v` são os dois válidos.
-Por isso os meus scores batem com o sklearn em módulo, às vezes com o sinal trocado. Não é bug, é
-propriedade — e o teste de validação tem que ser robusto a isso (comparo `np.abs`, não os valores
+Ambiguidade de sinal. Autovetor é definido a menos de sinal: `v` e `-v` são os dois válidos. Por
+isso os meus scores batem com o sklearn em módulo, às vezes com o sinal trocado. Não é bug, é
+propriedade, e o teste de validação tem que ser robusto a isso (comparo `np.abs`, não os valores
 crus).
 
-**O gradiente do MSE, derivado na mão.** Aqui entra o Cálculo. A loss é `MSE = (1/n)·Σ(ŷ−y)²`, e
-pra minimizar preciso da derivada dela em relação aos pesos. Regra da cadeia: a derivada de `r²` é
-`2r`, e a derivada do resíduo `r = xᵀw − y` em relação a `w` é o próprio `x`. Junta os dois e o
-gradiente vira `(2/n)·Xᵀ(Xw − y)`. Não confiei na fórmula por fé — conferi contra o gradiente
-numérico (diferenças finitas) e bateu até a última casa.
+O gradiente do MSE, derivado na mão. Aqui entra o Cálculo. A loss é `MSE = (1/n)·Σ(ŷ−y)²`, e pra
+minimizar preciso da derivada dela em relação aos pesos. Regra da cadeia: a derivada de `r²` é `2r`,
+e a derivada do resíduo `r = xᵀw − y` em relação a `w` é o próprio `x`. Junta os dois e o gradiente
+vira `(2/n)·Xᵀ(Xw − y)`. Não confiei na fórmula por fé, conferi contra o gradiente numérico
+(diferenças finitas) e bateu até a última casa.
 
-**Gradiente descendente vs. equação normal — quando cada um.** Os dois chegam no mesmo `w` (provei
-num teste). A diferença é o caminho. A equação normal resolve de uma vez, `w = (XᵀX)⁻¹Xᵀy`, mas
-inverte uma matriz: custo ~`O(d³)` e frágil quando as features são quase colineares (o `XᵀX` fica
-mal-condicionado). O gradiente descendente chega lá aos poucos, sem inverter nada, e escala pra
-tamanhos onde inverter matriz seria inviável. É por isso que o mundo real — e todo deep learning —
-roda em gradiente, não em solução fechada. A fórmula fechada aqui serviu de gabarito pra provar
-que o meu gradiente estava certo.
+Gradiente descendente vs. equação normal, quando usar cada um. Os dois chegam no mesmo `w` (provei
+num teste), a diferença é o caminho. A equação normal resolve de uma vez, `w = (XᵀX)⁻¹Xᵀy`, mas
+inverte uma matriz: custo ~`O(d³)` e frágil quando as features são quase colineares, porque o `XᵀX`
+fica mal-condicionado (é o mesmo problema que ataquei na etapa 8, com SVD). O gradiente descendente
+chega lá aos poucos, sem inverter nada, e escala pra tamanhos onde inverter matriz seria inviável.
+Por isso o mundo real, e todo deep learning, roda em gradiente, não em solução fechada. A fórmula
+fechada aqui serviu de gabarito pra provar que o meu gradiente estava certo.
 
-**A ponte entre as duas metades.** Regressão linear é invariante a rotação do espaço de features.
-PCA com todos os componentes é só uma rotação (base ortonormal, nada perdido — o roundtrip prova).
-Então regredir `proline` nos 12 scores dá previsão e MSE idênticos a regredir nas 12 features
-originais. Os pesos mudam, porque estão numa base girada; o que o modelo prevê, não. Foi o "aha"
-que costurou PCA e regressão num projeto só.
+A ponte entre as duas metades. Regressão linear é invariante a rotação do espaço de features. PCA
+com todos os componentes é só uma rotação, base ortonormal, nada perdido (o roundtrip prova). Então
+regredir `proline` nos 12 scores dá previsão e MSE idênticos a regredir nas 12 features originais.
+Os pesos mudam, porque estão numa base girada; o que o modelo prevê, não. Foi o "aha" que costurou
+PCA e regressão num projeto só.
 
 ## Como rodar
 
@@ -174,33 +192,38 @@ mml-from-scratch/
 
 <!-- Renan: rascunho no seu tom pra ajustar. Tudo aqui saiu de coisa que eu tropecei de verdade. -->
 
-- **Função pura vale mais que script com dados embutidos.** Minha primeira versão do PCA carregava
-  o dataset dentro do módulo. Parecia prático — até a hora de testar, quando percebi que não dava
-  pra reusar as funções com outra entrada. Tirar o carregamento e deixar os módulos só com funções
-  puras foi o que tornou o projeto testável. No `regression.py` já saiu limpo de primeira.
+- Função pura vale mais que script com dados embutidos. Minha primeira versão do PCA carregava o
+  dataset dentro do módulo. Parecia prático, até a hora de testar, quando percebi que não dava pra
+  reusar as funções com outra entrada. Tirar o carregamento e deixar os módulos só com funções puras
+  foi o que tornou o projeto testável. No `regression.py` já saiu limpo de primeira.
 
-- **Um teste sem `assert` não testa nada.** Óbvio depois, não antes. Meu primeiro teste calculava a
-  verificação e jogava o resultado no lixo. O `assert` *é* o teste; o resto é preparação. Aprendi
+- Um teste sem `assert` não testa nada. Óbvio depois, não antes. Meu primeiro teste calculava a
+  verificação e jogava o resultado no lixo. O `assert` é o teste, o resto é preparação. Aprendi
   também que rodar via `pytest` (que descobre os testes e monta o path) é diferente de rodar o
-  arquivo como script — e por que só o primeiro funciona.
+  arquivo como script, e por que só o primeiro funciona.
 
-- **Num teste de comparação, um lado é o meu código, o outro é a referência.** Perdi um tempo
-  comparando o sklearn com ele mesmo transposto antes de sacar que o meu resultado tinha ficado de
-  fora do `assert`. Teste que compara a referência com ela mesma é teatro.
+- Num teste de comparação, um lado é o meu código, o outro é a referência. Perdi um tempo comparando
+  o sklearn com ele mesmo transposto antes de sacar que o meu resultado tinha ficado de fora do
+  `assert`. Teste que compara a referência com ela mesma é teatro.
 
-- **`.copy()` no NumPy não é opcional.** No gradiente numérico, `w_mais = w` não copia — aponta pro
-  mesmo array, e mexer em `w_mais[i]` corrompe o `w` original. Bug silencioso clássico. Hoje
-  "referência ou cópia?" é a primeira pergunta que faço quando um array muda sem eu mandar.
+- `.copy()` no NumPy não é opcional. No gradiente numérico, `w_mais = w` não copia, aponta pro mesmo
+  array, e mexer em `w_mais[i]` corrompe o `w` original. Bug silencioso clássico. Hoje "referência ou
+  cópia?" é a primeira pergunta que faço quando um array muda sem eu mandar.
 
-- **Derivar o gradiente na mão e provar com diferenças finitas.** Foi o que mais me deu segurança:
-  não é "confio que a fórmula tá certa", é "provo que tá". Mesma ideia do backprop, num modelo que
-  ainda cabe na cabeça.
+- Derivar o gradiente na mão e provar com diferenças finitas foi o que mais me deu segurança. Não é
+  confiar que a fórmula tá certa, é provar que tá. Mesma ideia do backprop, num modelo que ainda cabe
+  na cabeça.
 
-- **Detalhes que pareciam pedância viraram entendimento.** O `ddof=1` explica a diferencinha pro
+- Detalhes que pareciam pedância viraram entendimento. O `ddof=1` explica a diferencinha pro
   `StandardScaler`; padronizar (escala) não é o mesmo que centralizar (média); e com os dados
-  padronizados o intercepto da regressão dá exatamente a média do alvo — o que usei de sanity check
+  padronizados o intercepto da regressão dá exatamente a média do alvo, o que usei de sanity check
   pro termo de bias.
 
-- **CI não é enfeite.** Colocar os testes no GitHub Actions me obrigou a garantir que o
-  `requirements.txt` está completo, porque o runner parte de um ambiente pelado. Faltou dependência?
-  Fica vermelho. (E descobri na marra que push de workflow exige o escopo `workflow` no token.)
+- CI não é enfeite. Colocar os testes no GitHub Actions me obrigou a garantir que o
+  `requirements.txt` está completo, porque o runner parte de um ambiente pelado. Faltou dependência,
+  fica vermelho. E descobri na marra que push de workflow exige o escopo `workflow` no token.
+
+- Montar a covariância na mão eleva o número de condição ao quadrado. No caso mal-condicionado que
+  construí pra testar SVD contra eigendecomposition, isso apagou completamente o componente mais
+  fraco antes mesmo da decomposição rodar. Não vi isso em nenhum lugar, só apareceu quando fui atrás
+  de um caso que quebrasse o método que eu já tinha.
