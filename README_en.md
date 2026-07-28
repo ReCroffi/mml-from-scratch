@@ -83,6 +83,16 @@ cultivars separate into well-defined groups — and PCA **never saw the labels**
 variance. The classes emerge because the difference between cultivars *is* the largest source of
 variation in the data.
 
+### Regression MSE vs. number of PCA components
+
+![Regression MSE over the PCA scores, for each number of components, compared to MSE without PCA](assets/mse_k_components.png)
+
+This is where the bridge between the two halves of the project turns into a number: predicting
+`proline` from the other 12 features, the MSE drops from ~74,797 with 1 component to ~34,920 with
+all 12 — and that final value is **identical** to the MSE of regressing directly on the 12 original
+features (the dashed red line). Makes sense: with all components, PCA is just a rotation of the
+space, and linear regression is rotation-invariant — the same proof from step 7, now as a chart.
+
 ## The math behind it
 
 <!-- Renan: draft for you to adjust in your own voice. Make sure you can defend each point out

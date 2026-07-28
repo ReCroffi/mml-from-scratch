@@ -82,6 +82,16 @@ Cada ponto é um vinho projetado nos dois primeiros componentes (≈ 55% da vari
 se separam em grupos bem definidos — e o PCA **nunca viu os rótulos**: ele só maximiza variância.
 As classes emergem porque a diferença entre castas *é* a maior fonte de variação nos dados.
 
+### MSE da regressão vs. número de componentes do PCA
+
+![MSE da regressão sobre os scores do PCA, para cada número de componentes, comparado ao MSE sem PCA](assets/mse_k_components.png)
+
+Aqui a ponte entre as duas metades do projeto vira número: prevendo `proline` a partir das outras
+12 features, o MSE cai de ~74.797 com 1 componente pra ~34.920 com os 12 — e esse valor final é
+**idêntico** ao MSE da regressão direto sobre as 12 features originais (linha tracejada vermelha).
+Faz sentido: com todos os componentes, o PCA é só uma rotação do espaço, e regressão linear é
+invariante a rotação — é a mesma prova da etapa 7, agora em gráfico.
+
 ## A matemática por trás
 
 <!-- Renan: rascunho pra você ajustar no seu tom. Confere se sabe defender cada ponto de boca —
